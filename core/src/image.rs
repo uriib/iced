@@ -201,7 +201,7 @@ enum _Id {
 }
 
 impl Id {
-    fn unique() -> Self {
+    pub(crate) fn unique() -> Self {
         use std::sync::atomic::{self, AtomicU64};
 
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
@@ -209,7 +209,7 @@ impl Id {
         Self(_Id::Unique(NEXT_ID.fetch_add(1, atomic::Ordering::Relaxed)))
     }
 
-    fn path(path: impl AsRef<Path>) -> Self {
+    pub(crate) fn path(path: impl AsRef<Path>) -> Self {
         let hash = {
             let mut hasher = FxHasher::default();
             path.as_ref().hash(&mut hasher);

@@ -1,6 +1,7 @@
 use crate::core::svg::{Data, Handle};
 use crate::core::{Color, Rectangle, Size};
 
+use iced_debug::core::svg::Id;
 use resvg::usvg;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tiny_skia::Transform;
@@ -70,8 +71,8 @@ impl Pipeline {
 
 #[derive(Default)]
 struct Cache {
-    trees: FxHashMap<u64, Option<resvg::usvg::Tree>>,
-    tree_hits: FxHashSet<u64>,
+    trees: FxHashMap<Id, Option<resvg::usvg::Tree>>,
+    tree_hits: FxHashSet<Id>,
     rasters: FxHashMap<RasterKey, tiny_skia::Pixmap>,
     raster_hits: FxHashSet<RasterKey>,
     #[cfg(feature = "svg-text")]
@@ -80,7 +81,7 @@ struct Cache {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct RasterKey {
-    id: u64,
+    id: Id,
     color: Option<[u8; 4]>,
     size: Size<u32>,
 }
@@ -114,6 +115,7 @@ impl Cache {
                     .ok()
                     .and_then(|contents| usvg::Tree::from_str(&contents, &options).ok()),
                 Data::Bytes(bytes) => usvg::Tree::from_data(bytes, &options).ok(),
+                Data::Tree(tree) => Some(tree.clone()),
             };
 
             let _ = entry.insert(svg);

@@ -1,11 +1,13 @@
 //! Load and draw vector graphics.
-use crate::{Color, Radians, Rectangle, Size};
+use crate::{Color, Radians, Rectangle, Size, image};
 
-use rustc_hash::FxHasher;
 use std::borrow::Cow;
-use std::hash::{Hash, Hasher as _};
+use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+/// The unique identifier of some [`Handle`] data.
+pub type Id = image::Id;
 
 /// A raster image that can be drawn.
 #[derive(Debug, Clone, PartialEq)]
@@ -68,9 +70,9 @@ impl From<&Handle> for Svg {
 }
 
 /// A handle of Svg data.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Handle {
-    id: u64,
+    id: Id,
     data: Arc<Data>,
 }
 
@@ -90,18 +92,24 @@ impl Handle {
         Self::from_data(Data::Bytes(bytes.into()))
     }
 
-    fn from_data(data: Data) -> Handle {
-        let mut hasher = FxHasher::default();
-        data.hash(&mut hasher);
+    /// Creates an SVG [`Handle`] from a parsed SVG tree by `usvg`
+    pub fn from_tree(tree: impl Into<usvg::Tree>) -> Handle {
+        Self::from_data(Data::Tree(tree.into()))
+    }
 
+    fn from_data(data: Data) -> Handle {
+        let id = match &data {
+            Data::Path(path) => Id::path(path),
+            Data::Bytes(_) | Data::Tree(_) => Id::unique(),
+        };
         Handle {
-            id: hasher.finish(),
+            id,
             data: Arc::new(data),
         }
     }
 
     /// Returns the unique identifier of the [`Handle`].
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> Id {
         self.id
     }
 
@@ -126,8 +134,15 @@ impl Hash for Handle {
     }
 }
 
+impl PartialEq for Handle {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for Handle {}
+
 /// The data of a vectorial image.
-#[derive(Clone, Hash, PartialEq, Eq)]
 pub enum Data {
     /// File data
     Path(PathBuf),
@@ -136,6 +151,9 @@ pub enum Data {
     ///
     /// Can contain an SVG string or a gzip compressed data.
     Bytes(Cow<'static, [u8]>),
+
+    /// Parsed SVG tree.
+    Tree(usvg::Tree),
 }
 
 impl std::fmt::Debug for Data {
@@ -143,6 +161,7 @@ impl std::fmt::Debug for Data {
         match self {
             Data::Path(path) => write!(f, "Path({path:?})"),
             Data::Bytes(_) => write!(f, "Bytes(...)"),
+            Data::Tree(_) => write!(f, "Tree(...)"),
         }
     }
 }

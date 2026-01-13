@@ -35,10 +35,10 @@ impl Svg {
 /// Caches svg vector and raster data
 #[derive(Debug, Default)]
 pub struct Cache {
-    svgs: FxHashMap<u64, Svg>,
-    rasterized: FxHashMap<(u64, u32, u32, ColorFilter), atlas::Entry>,
-    svg_hits: FxHashSet<u64>,
-    rasterized_hits: FxHashSet<(u64, u32, u32, ColorFilter)>,
+    svgs: FxHashMap<svg::Id, Svg>,
+    rasterized: FxHashMap<(svg::Id, u32, u32, ColorFilter), atlas::Entry>,
+    svg_hits: FxHashSet<svg::Id>,
+    rasterized_hits: FxHashSet<(svg::Id, u32, u32, ColorFilter)>,
     should_trim: bool,
     #[cfg(feature = "svg-text")]
     fontdb: Option<Arc<usvg::fontdb::Database>>,
@@ -82,6 +82,7 @@ impl Cache {
                 Ok(tree) => Svg::Loaded(tree),
                 Err(_) => Svg::NotFound,
             },
+            svg::Data::Tree(tree) => Svg::Loaded(tree.clone()),
         };
 
         self.should_trim = true;
@@ -179,7 +180,7 @@ impl Cache {
 
                 let allocation = atlas.upload(device, encoder, belt, width, height, &rgba)?;
 
-                log::debug!("allocating {id} {width}x{height}");
+                log::debug!("allocating {id:?} {width}x{height}");
 
                 let _ = self.svg_hits.insert(id);
                 let _ = self.rasterized_hits.insert(key);
